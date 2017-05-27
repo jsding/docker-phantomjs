@@ -1,40 +1,32 @@
-FROM debian:jessie
+# This is a Dockerfile for creating a Manet container from a base Ubuntu 14:04 image.
+# Manet's code can be found here: https://github.com/vbauer/manet
+#
+# To use this container, start it as usual:
+#
+#    $ sudo docker run pdelsante/manet
+#
+# Then find out its IP address by running:
+#
+#    $ sudo docker ps                  
+#    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+#    d1d7165512e2        pdelsante/manet     "/usr/bin/manet"    48 seconds ago      Up 47 seconds       8891/tcp            romantic_cray
+#
+#    $ sudo docker inspect d1d7165512e2 | grep IPAddress
+#         "IPAddress": "172.17.0.1",
+#
+# Now you can connect to:
+#    http://172.17.0.1:8891
+#
+FROM ubuntu:16.04
+MAINTAINER pietro.delsante_AT_gmail.com
+ENV DEBIAN_FRONTEND noninteractive
+EXPOSE 8891
 
-# Install runtime dependencies
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        bzip2 \
-        libfontconfig \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get -y install curl && \
+    curl -sL https://deb.nodesource.com/setup_4.x | /bin/bash - && \
+    apt-get -y install nodejs build-essential xvfb libfontconfig1 && \
+    npm install -g phantomjs@2.1.7 && \
+    npm install -g manet@0.4.15
 
-RUN set -x  \
-    # Install official PhantomJS release
- && apt-get update \
- && apt-get install -y --no-install-recommends \
-        curl \
- && mkdir /tmp/phantomjs \
- && curl -L https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 \
-        | tar -xj --strip-components=1 -C /tmp/phantomjs \
- && mv /tmp/phantomjs/bin/phantomjs /usr/local/bin \
-    # Install dumb-init (to handle PID 1 correctly).
-    # https://github.com/Yelp/dumb-init
- && curl -Lo /tmp/dumb-init.deb https://github.com/Yelp/dumb-init/releases/download/v1.1.3/dumb-init_1.1.3_amd64.deb \
- && dpkg -i /tmp/dumb-init.deb \
-    # Clean up
- && apt-get purge --auto-remove -y \
-        curl \
- && apt-get clean \
- && rm -rf /tmp/* /var/lib/apt/lists/* \
-    \
-    # Run as non-root user.
- && useradd --system --uid 72379 -m --shell /usr/sbin/nologin phantomjs \
- && su phantomjs -s /bin/sh -c "phantomjs --version"
-
-USER phantomjs
-
-EXPOSE 8910
-
-ENTRYPOINT ["dumb-init"]
-CMD ["phantomjs"]
+ENTRYPOINT ["/usr/bin/manet"]
